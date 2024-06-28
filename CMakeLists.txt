@@ -57,7 +57,7 @@ else()
   FetchContent_MakeAvailable(SDL2)
 
   target_link_libraries(nes-emu PRIVATE 
-    glfw opengl32 glad
+    glfw glad
     SDL2main SDL2-static)
   target_include_directories(nes-emu PRIVATE 
     ${glfw_SOURCE_DIR}/include

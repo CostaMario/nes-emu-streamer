@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "nes.h"
+#include <cstring>
 
 CPU::CPU(NES& nes) : nes(nes) {}
 

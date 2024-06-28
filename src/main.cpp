@@ -4,6 +4,9 @@
 #include "audio.h"
 #include "nes/nes.h"
 #include "renderer.h"
+#include <fstream>
+#include <netinet/in.h> 
+#include <sys/socket.h> 
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -41,7 +44,23 @@ int main(int argc, char* agv[]) {
     return -1;
   }
 
-  nes.load("assets/nestest.nes");
+  if(argc > 1)
+  {
+    std::ifstream file(agv[1], std::ios::in);
+    if(!file)
+    {
+      fprintf(stderr, "Could not load cartridge file %s\n", agv[1]);
+      return 0;
+    }
+    else
+    {
+      nes.load(agv[1]);
+    }
+  }
+  else
+  {
+    nes.load("assets/nestest.nes");
+  }
 
 #ifdef __EMSCRIPTEN__
   emscripten_set_main_loop(&loop, 0, 1);
