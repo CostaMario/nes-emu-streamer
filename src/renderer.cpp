@@ -1,9 +1,12 @@
 #include "renderer.h"
 #include <cstdio>
-#include "glfw_keycodes.h"
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include <cstring>
+#include <stdlib.h>
+#include <netinet/in.h> 
+#include <sys/socket.h> 
+#include <errno.h>
+#include <unistd.h>
+#include <chrono>
 
 namespace {
 
@@ -51,9 +54,9 @@ float transform_matrix[][4] = {
 uint8_t nametable_pixels[480][512][3];
 uint8_t pattern_table_pixels[128][256][3];
 
-ImVec2 uv(float px, float py) {
+/*ImVec2 uv(float px, float py) {
   return ImVec2(px / texture_size, py / texture_size);
-}
+}*/
 
 #ifdef __EMSCRIPTEN__
 const char* gamepad_button_strings[] = {
@@ -70,13 +73,35 @@ const char* gamepad_button_strings[] = {
 }  // namespace
 
 void Renderer::render() {
-  glfwPollEvents();
-  poll_joystick();
-  set_joypad_state();
+  //glfwPollEvents();
+  //poll_joystick();
+  //set_joypad_state();
 
+  // Stream game
+  for(uint16_t i = 0; i < 240; i++)
+  {
+    uint8_t packetdata[256 * 3 + 3];
+    packetdata[0] = i >> 8;
+    packetdata[1] = i;
+    packetdata[2] = frame_id;
+    for(int j = 0; j < 256; j++)
+    {
+      for(int c = 0; c < 3; c++)
+      {
+        packetdata[3 + j * 3 + c] = nes.ppu.pixels[i][j][c];
+      }
+    }
+    sendto(video_socket, packetdata, 256 * 3 + 3, 0, (struct sockaddr*)&video_address, sizeof(video_address));
+  }
+
+  frame_id++;
+
+  /*
   // Update texture from NES data
   update_texture();
-
+  
+  // Prepare ImGui
+  
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -85,10 +110,10 @@ void Renderer::render() {
       ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
   // Main screen
-  ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+  /*ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
   if (ImGui::Begin("NES Screen", nullptr, window_flags)) {
     ImGui::Image((ImTextureID)texture, ImVec2(512, 480), uv(0, 0),
-                 uv(256, 240));
+                 uv(256, 240)); 
   }
   ImGui::End();
 
@@ -118,7 +143,6 @@ void Renderer::render() {
                  uv(256, 256 + 128));
   }
   ImGui::End();
-
   // Audio
   ImGui::SetNextWindowPos(ImVec2(0, 480 + 16 + 16 + 3), ImGuiCond_Once);
   ImGui::SetNextWindowContentSize(ImVec2(512, 256));
@@ -145,10 +169,33 @@ void Renderer::render() {
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
   glfwSwapBuffers(window);
+  */
 }
 
 bool Renderer::init() {
-  if (!glfwInit()) {
+
+  // Setup video socket
+  video_socket = socket(AF_INET, SOCK_DGRAM, 0);
+
+  sockaddr_in server_address;
+  server_address.sin_family = AF_INET; 
+  server_address.sin_port = htons(24240); 
+  server_address.sin_addr.s_addr =  htonl(INADDR_ANY);
+
+  video_address.sin_family = AF_INET; 
+  video_address.sin_port = htons(24241); 
+  video_address.sin_addr.s_addr =  htonl(INADDR_ANY);
+  
+  int result = bind(video_socket, (struct sockaddr*)&server_address, sizeof(server_address));
+  if(result < 0)
+  {
+    fprintf(stderr, "socket: %s\n", strerror(errno));
+    exit(2);
+  }
+
+  clock = new std::chrono::high_resolution_clock;
+
+  /*if (!glfwInit()) {
     return false;
   }
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -183,7 +230,7 @@ bool Renderer::init() {
 #endif
 
   // Setup imgui
-  IMGUI_CHECKVERSION();
+  /*IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = nullptr;
@@ -268,7 +315,8 @@ bool Renderer::init() {
   glUseProgram(shader_program);
   transform_loc = glGetUniformLocation(shader_program, "transform");
 
-  glBindVertexArray(VAO);
+  glBindVertexArray(VAO);*/
+  
   return true;
 }
 
@@ -295,22 +343,25 @@ void Renderer::add_quad(float x,
 }
 
 void Renderer::destroy() {
-  glDeleteShader(vertex_shader);
+  /*glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
 
   glfwDestroyWindow(window);
-  glfwTerminate();
+  glfwTerminate();*/
+  close(video_socket);
 }
 
 bool Renderer::done() {
-  return glfwWindowShouldClose(window);
+  //return glfwWindowShouldClose(window);
+  return false;
 }
 
 double Renderer::time() {
-  return glfwGetTime();
+  std::chrono::time_point<std::chrono::high_resolution_clock, std::chrono::duration<double, std::milli>> tp = clock->now();
+  return tp.time_since_epoch().count();
 }
 
-void Renderer::set_pixels(uint8_t* pixels, int x, int y, int w, int h) {
+/*void Renderer::set_pixels(uint8_t* pixels, int x, int y, int w, int h) {
   glBindTexture(GL_TEXTURE_2D, texture);
   glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGB, GL_UNSIGNED_BYTE,
                   pixels);
@@ -422,7 +473,7 @@ void Renderer::poll_joystick() {
           (bool)buttons[input_binding.gamepad_button];
     }
   }
-}
+}*/
 
 void Renderer::set_joypad_state() {
   for (int i = 0; i < (int)Button::Count; i++) {
@@ -431,7 +482,7 @@ void Renderer::set_joypad_state() {
   }
 }
 
-void Renderer::key_callback(int key, int scancode, int action, int mods) {
+/*void Renderer::key_callback(int key, int scancode, int action, int mods) {
   if (action == GLFW_PRESS && key == GLFW_KEY_ESCAPE) {
     remapping_binding = -1;
   }
@@ -453,7 +504,7 @@ void Renderer::key_callback(int key, int scancode, int action, int mods) {
       key_states[(int)it->second->nes_button] = (action == GLFW_PRESS);
     }
   }
-}
+}*/
 
 void Renderer::drop_callback(int count, const char** paths) {
   nes.load(paths[0]);

@@ -1,7 +1,11 @@
 #include "nes.h"
+#include <stdio.h>
 
 void NES::load(const char* filename) {
   loaded = cartridge.load(filename);
+  printf("Loaded ");
+  printf(filename);
+  printf("\n");
   if (loaded) {
     cpu.power_on();
     ppu.power_on();

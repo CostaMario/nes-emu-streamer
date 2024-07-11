@@ -1,6 +1,7 @@
 #pragma once
-#include <SDL.h>
 #include "nes/nes.h"
+#include <netinet/in.h> 
+#include <sys/socket.h> 
 
 class Audio {
  public:
@@ -8,10 +9,12 @@ class Audio {
   bool init();
   void destroy();
   void output();
+  int audio_socket;
+  sockaddr_in audio_address;
 
  private:
   NES& nes;
 
-  SDL_AudioDeviceID audio_device;
+  //SDL_AudioDeviceID audio_device;
   int average_queue_size = 0;
 };

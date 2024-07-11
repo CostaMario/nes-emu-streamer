@@ -3,12 +3,13 @@
 #include <GLES3/gl3.h>
 #include <emscripten/html5.h>
 #else
-#include <glad/gl.h>
 #endif
-#include <GLFW/glfw3.h>
 #include <unordered_map>
 #include <vector>
 #include "nes/nes.h"
+#include <netinet/in.h> 
+#include <sys/socket.h> 
+#include <chrono>
 
 struct InputBinding {
   const char* name;
@@ -25,11 +26,19 @@ class Renderer {
   void render();
   bool done();
   double time();
+  int server_socket;
+  int video_socket;
+  
+  sockaddr_in video_address;
+
+  uint8_t frame_id;
 
  private:
   NES& nes;
 
-  GLFWwindow* window = nullptr;
+  std::chrono::high_resolution_clock* clock;
+
+  //GLFWwindow* window = nullptr;
 
   unsigned int VAO;
   unsigned int VBO;
@@ -70,7 +79,7 @@ class Renderer {
       {"Right", Button::Right, GLFW_KEY_RIGHT, 15},
   };
 #else
-  InputBinding input_bindings[(int)Button::Count] = {
+  /*InputBinding input_bindings[(int)Button::Count] = {
       {"A", Button::A, GLFW_KEY_Z, GLFW_GAMEPAD_BUTTON_A},
       {"B", Button::B, GLFW_KEY_X, GLFW_GAMEPAD_BUTTON_B},
       {"Start", Button::Start, GLFW_KEY_ENTER, GLFW_GAMEPAD_BUTTON_START},
@@ -79,7 +88,7 @@ class Renderer {
       {"Down", Button::Down, GLFW_KEY_DOWN, GLFW_GAMEPAD_BUTTON_DPAD_DOWN},
       {"Left", Button::Left, GLFW_KEY_LEFT, GLFW_GAMEPAD_BUTTON_DPAD_LEFT},
       {"Right", Button::Right, GLFW_KEY_RIGHT, GLFW_GAMEPAD_BUTTON_DPAD_RIGHT},
-  };
+  };*/
 #endif
   std::unordered_map<int, InputBinding*> input_mapping;
   int remapping_binding = -1;
